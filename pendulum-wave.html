@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pendulum Wave</title>
+<style>
+  :root {
+    --bg-0: #07080c;
+    --bg-1: #0e1018;
+    --bg-2: #161927;
+    --line: #232739;
+    --text: #e6e8ef;
+    --muted: #8b91a7;
+    --accent: #7aa2ff;
+    --accent-2: #b78bff;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background:
+      radial-gradient(1200px 800px at 20% -10%, #161a2c 0%, transparent 60%),
+      radial-gradient(900px 700px at 110% 110%, #1a1430 0%, transparent 55%),
+      var(--bg-0);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(10,11,16,0.85), rgba(10,11,16,0.4));
+    backdrop-filter: blur(8px);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+  }
+
+  .brand .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 14px rgba(122,162,255,0.55);
+  }
+
+  .stats {
+    display: flex;
+    gap: 18px;
+    color: var(--muted);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .stats span b {
+    color: var(--text);
+    font-weight: 500;
+    margin-left: 6px;
+  }
+
+  main {
+    position: relative;
+    overflow: hidden;
+  }
+
+  canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hint {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    letter-spacing: 0.3px;
+    pointer-events: none;
+    opacity: 0.7;
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    background: linear-gradient(0deg, rgba(10,11,16,0.85), rgba(10,11,16,0.4));
+    backdrop-filter: blur(8px);
+    padding: 14px 24px;
+  }
+
+  .controls {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr 1fr;
+    gap: 22px;
+    align-items: center;
+  }
+
+  .btn-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  button {
+    background: var(--bg-2);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: inherit;
+  }
+
+  button:hover {
+    border-color: #353a52;
+    background: #1c2034;
+  }
+
+  button:active { transform: translateY(1px); }
+
+  button.primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color: transparent;
+    color: #0a0a10;
+    font-weight: 600;
+  }
+
+  button.primary:hover { filter: brightness(1.08); }
+
+  .slider {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .slider .top {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .slider .top b {
+    color: var(--text);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--line);
+    border-radius: 999px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    cursor: pointer;
+    border: 2px solid var(--bg-0);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    border: 2px solid var(--bg-0);
+  }
+
+  @media (max-width: 720px) {
+    header { padding: 14px 16px; }
+    .stats { display: none; }
+    footer { padding: 12px 14px; }
+    .controls {
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .btn-row { grid-column: 1 / -1; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <span class="dot"></span>
+      <span>Pendulum Wave</span>
+    </div>
+    <div class="stats">
+      <span>Cycle <b id="stat-cycle">60s</b></span>
+      <span>Elapsed <b id="stat-elapsed">0.0s</b></span>
+      <span>Phase <b id="stat-phase">0%</b></span>
+    </div>
+  </header>
+
+  <main>
+    <canvas id="canvas"></canvas>
+    <div class="hint">Watch the wave • split • chaos • re-sync</div>
+  </main>
+
+  <footer>
+    <div class="controls">
+      <div class="btn-row">
+        <button class="primary" id="play">Pause</button>
+        <button id="reset">Reset</button>
+      </div>
+
+      <div class="slider">
+        <div class="top"><span>Pendulums</span><b id="lbl-count">15</b></div>
+        <input type="range" id="count" min="6" max="30" step="1" value="15" />
+      </div>
+
+      <div class="slider">
+        <div class="top"><span>Cycle Time</span><b id="lbl-cycle">60s</b></div>
+        <input type="range" id="cycle" min="20" max="120" step="5" value="60" />
+      </div>
+
+      <div class="slider">
+        <div class="top"><span>Speed</span><b id="lbl-speed">1.0×</b></div>
+        <input type="range" id="speed" min="0.1" max="3" step="0.1" value="1" />
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  const ui = {
+    play: document.getElementById('play'),
+    reset: document.getElementById('reset'),
+    count: document.getElementById('count'),
+    cycle: document.getElementById('cycle'),
+    speed: document.getElementById('speed'),
+    lblCount: document.getElementById('lbl-count'),
+    lblCycle: document.getElementById('lbl-cycle'),
+    lblSpeed: document.getElementById('lbl-speed'),
+    statCycle: document.getElementById('stat-cycle'),
+    statElapsed: document.getElementById('stat-elapsed'),
+    statPhase: document.getElementById('stat-phase'),
+  };
+
+  const state = {
+    count: 15,
+    cycleTime: 60,    // seconds for full re-sync
+    minOscillations: 30, // base oscillations of slowest pendulum within cycle
+    speed: 1,
+    playing: true,
+    elapsed: 0,
+    lastTs: 0,
+    dpr: window.devicePixelRatio || 1,
+    width: 0,
+    height: 0,
+  };
+
+  function resize() {
+    const rect = canvas.getBoundingClientRect();
+    state.width = rect.width;
+    state.height = rect.height;
+    canvas.width = rect.width * state.dpr;
+    canvas.height = rect.height * state.dpr;
+    ctx.setTransform(state.dpr, 0, 0, state.dpr, 0, 0);
+  }
+  window.addEventListener('resize', resize);
+
+  // Pendulum k (k=0..N-1) completes (minOsc + k) oscillations in cycleTime.
+  // Period T_k = cycleTime / (minOsc + k)
+  // Length L_k chosen so that the longest pendulum fills available height.
+  function getPendulums() {
+    const N = state.count;
+    const T = state.cycleTime;
+    const base = state.minOscillations;
+
+    const periods = [];
+    for (let k = 0; k < N; k++) periods.push(T / (base + k));
+
+    // L proportional to T^2 (g * T^2 / 4π²). We just normalize to fit.
+    const lengths = periods.map(p => p * p);
+    const maxL = Math.max(...lengths);
+    const minL = Math.min(...lengths);
+
+    return { periods, lengths, maxL, minL };
+  }
+
+  function colorFor(i, n) {
+    // Smooth rainbow across pendulums, dark-mode tuned
+    const hue = (i / Math.max(1, n - 1)) * 280; // 0..280° (red→violet, skip last muddy range)
+    return {
+      stroke: `hsl(${hue}, 75%, 65%)`,
+      glow: `hsla(${hue}, 90%, 70%, 0.55)`,
+      faint: `hsla(${hue}, 70%, 60%, 0.18)`,
+    };
+  }
+
+  function draw() {
+    const W = state.width;
+    const H = state.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const N = state.count;
+    const { periods, lengths, maxL, minL } = getPendulums();
+
+    // Layout
+    const padX = Math.max(40, W * 0.06);
+    const topY = 70;
+    const availableH = H - topY - 40;
+    const barWidth = W - padX * 2;
+    const spacing = barWidth / (N - 1);
+
+    // Pivot bar
+    ctx.strokeStyle = '#2a2f44';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(padX - 20, topY);
+    ctx.lineTo(W - padX + 20, topY);
+    ctx.stroke();
+
+    // Subtle equilibrium guide
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < N; i++) {
+      const x = padX + i * spacing;
+      const len = (lengths[i] / maxL) * availableH;
+      ctx.beginPath();
+      ctx.moveTo(x, topY);
+      ctx.lineTo(x, topY + len);
+      ctx.stroke();
+    }
+
+    // Amplitude in radians (visual swing angle)
+    const amplitude = 0.55;
+
+    // Bob radius scaled by available width
+    const bobR = Math.max(7, Math.min(13, spacing * 0.32));
+
+    for (let i = 0; i < N; i++) {
+      const x0 = padX + i * spacing;
+      const T = periods[i];
+      const phase = (state.elapsed / T) * Math.PI * 2;
+      // Start at maximum displacement (cos), so they all align at t=0 and t=cycleTime
+      const angle = amplitude * Math.cos(phase);
+
+      const len = (lengths[i] / maxL) * availableH;
+      const bx = x0 + Math.sin(angle) * len;
+      const by = topY + Math.cos(angle) * len;
+
+      const col = colorFor(i, N);
+
+      // String
+      ctx.strokeStyle = col.faint;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(x0, topY);
+      ctx.lineTo(bx, by);
+      ctx.stroke();
+
+      // Pivot
+      ctx.fillStyle = '#3a4061';
+      ctx.beginPath();
+      ctx.arc(x0, topY, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bob glow
+      const grad = ctx.createRadialGradient(bx, by, 0, bx, by, bobR * 2.4);
+      grad.addColorStop(0, col.glow);
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(bx, by, bobR * 2.4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bob
+      ctx.fillStyle = col.stroke;
+      ctx.beginPath();
+      ctx.arc(bx, by, bobR, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Bob highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.beginPath();
+      ctx.arc(bx - bobR * 0.35, by - bobR * 0.35, bobR * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Stats
+    ui.statElapsed.textContent = state.elapsed.toFixed(1) + 's';
+    const phasePct = ((state.elapsed % state.cycleTime) / state.cycleTime) * 100;
+    ui.statPhase.textContent = phasePct.toFixed(0) + '%';
+  }
+
+  function loop(ts) {
+    if (!state.lastTs) state.lastTs = ts;
+    const dt = (ts - state.lastTs) / 1000;
+    state.lastTs = ts;
+    if (state.playing) {
+      state.elapsed += dt * state.speed;
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  // UI bindings
+  ui.play.addEventListener('click', () => {
+    state.playing = !state.playing;
+    ui.play.textContent = state.playing ? 'Pause' : 'Play';
+  });
+
+  ui.reset.addEventListener('click', () => {
+    state.elapsed = 0;
+  });
+
+  ui.count.addEventListener('input', e => {
+    state.count = parseInt(e.target.value, 10);
+    ui.lblCount.textContent = state.count;
+  });
+
+  ui.cycle.addEventListener('input', e => {
+    state.cycleTime = parseInt(e.target.value, 10);
+    ui.lblCycle.textContent = state.cycleTime + 's';
+    ui.statCycle.textContent = state.cycleTime + 's';
+  });
+
+  ui.speed.addEventListener('input', e => {
+    state.speed = parseFloat(e.target.value);
+    ui.lblSpeed.textContent = state.speed.toFixed(1) + '×';
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', e => {
+    if (e.key === ' ') { e.preventDefault(); ui.play.click(); }
+    else if (e.key.toLowerCase() === 'r') { ui.reset.click(); }
+  });
+
+  resize();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
