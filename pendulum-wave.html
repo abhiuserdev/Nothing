@@ -285,7 +285,17 @@
     dpr: window.devicePixelRatio || 1,
     width: 0,
     height: 0,
+    trails: [],       // per-pendulum array of recent {x,y} positions
+    trailLength: 28,  // number of points kept per trail
   };
+
+  function ensureTrails(n) {
+    while (state.trails.length < n) state.trails.push([]);
+    if (state.trails.length > n) state.trails.length = n;
+  }
+  function clearTrails() {
+    for (const t of state.trails) t.length = 0;
+  }
 
   function resize() {
     const rect = canvas.getBoundingClientRect();
@@ -333,6 +343,7 @@
 
     const N = state.count;
     const { periods, lengths, maxL, minL } = getPendulums();
+    ensureTrails(N);
 
     // Layout
     const padX = Math.max(40, W * 0.06);
@@ -367,17 +378,50 @@
     // Bob radius scaled by available width
     const bobR = Math.max(7, Math.min(13, spacing * 0.32));
 
+    // First pass: update trails so we can draw them under everything else
+    const positions = [];
     for (let i = 0; i < N; i++) {
       const x0 = padX + i * spacing;
       const T = periods[i];
       const phase = (state.elapsed / T) * Math.PI * 2;
-      // Start at maximum displacement (cos), so they all align at t=0 and t=cycleTime
       const angle = amplitude * Math.cos(phase);
-
       const len = (lengths[i] / maxL) * availableH;
       const bx = x0 + Math.sin(angle) * len;
       const by = topY + Math.cos(angle) * len;
+      positions.push({ x0, bx, by, len });
 
+      const trail = state.trails[i];
+      if (state.playing) {
+        trail.push({ x: bx, y: by });
+        if (trail.length > state.trailLength) trail.shift();
+      }
+    }
+
+    // Draw trails (under strings/bobs)
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    for (let i = 0; i < N; i++) {
+      const trail = state.trails[i];
+      if (trail.length < 2) continue;
+      const col = colorFor(i, N);
+      const hueMatch = col.stroke.match(/hsl\((\d+)/);
+      const hue = hueMatch ? hueMatch[1] : 220;
+      for (let j = 1; j < trail.length; j++) {
+        const t = j / trail.length;        // 0 (oldest) → 1 (newest)
+        const a = trail[j - 1];
+        const b = trail[j];
+        ctx.strokeStyle = `hsla(${hue}, 90%, 70%, ${t * 0.55})`;
+        ctx.lineWidth = bobR * 0.55 * t;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
+
+    // Second pass: strings, pivots, bobs
+    for (let i = 0; i < N; i++) {
+      const { x0, bx, by } = positions[i];
       const col = colorFor(i, N);
 
       // String
@@ -441,11 +485,13 @@
 
   ui.reset.addEventListener('click', () => {
     state.elapsed = 0;
+    clearTrails();
   });
 
   ui.count.addEventListener('input', e => {
     state.count = parseInt(e.target.value, 10);
     ui.lblCount.textContent = state.count;
+    clearTrails();
   });
 
   ui.cycle.addEventListener('input', e => {
